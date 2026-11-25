@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.10.31-3
+
+- New option `tunnel_congestion` (`system` or `bbr`, default `system`): BBR for the tunnel
+  socket only. Needs the new `NET_ADMIN` permission. The start log shows the setting and
+  the kernel's loaded algorithms.
+
 ## 26.10.31-2
 
 - The server is given by its Tailscale machine name and resolved through Tailscale DNS

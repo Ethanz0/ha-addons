@@ -41,6 +41,7 @@ jq -n \
 	--arg uuid "$uuid" \
 	--arg level "$(jq -er '.log_level' "$options")" \
 	--arg dns "$(jq -r '.tunnel_dns // ""' "$options")" \
+	--arg cc "$(jq -r '.tunnel_congestion // "system"' "$options")" \
 	'{
   log: {loglevel: $level, access: "none"},
   dns: {
@@ -61,7 +62,8 @@ jq -n \
         encryption: "none",
         reverse: {tag: "home-in"}
       },
-      streamSettings: {sockopt: {domainStrategy: "UseIPv4"}}
+      streamSettings: {sockopt: ({domainStrategy: "UseIPv4"}
+        + (if $cc == "system" then {} else {tcpCongestion: $cc} end))}
     },
     {tag: "dns-out", protocol: "freedom"},
     {

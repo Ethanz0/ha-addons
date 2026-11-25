@@ -9,4 +9,20 @@ xray-render /data/options.json >"$config"
 # Read options from the file (not bashio::config) so the image also runs outside HA in tests.
 target=$(jq -r '"\(.tunnel_address):\(.tunnel_port)"' /data/options.json)
 bashio::log.info "Starting $(xray version | head -n 1 | cut -d ' ' -f 1-2), tunnel to ${target}"
+cc=$(jq -r '.tunnel_congestion // "system"' /data/options.json)
+loaded() { cat /proc/sys/net/ipv4/tcp_available_congestion_control 2>/dev/null || echo unknown; }
+bashio::log.info "Tunnel congestion control: ${cc}" \
+	"(kernel default $(cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null || echo unknown))"
+if [[ $cc != system ]]; then
+	# Xray loads the module on its first dial; if it cannot, it falls back to the default
+	# silently (Info level), so report what the kernel has once the tunnel had time to dial.
+	(
+		sleep 20
+		if [[ " $(loaded) " == *" ${cc} "* ]]; then
+			bashio::log.info "Kernel has ${cc}; the tunnel uses it"
+		else
+			bashio::log.warning "Kernel has no ${cc} (loaded: $(loaded)); the tunnel uses the default"
+		fi
+	) &
+fi
 exec xray run -config "$config"

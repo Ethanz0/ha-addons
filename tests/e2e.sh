@@ -96,6 +96,29 @@ check "Tailscale range" blocked "http://100.100.100.100/"
 check "IPv6 literal" blocked "http://[2606:4700:4700::1111]/"
 check "home router style address" blocked "http://192.168.0.1/"
 
+# tunnel_congestion: only the tunnel socket gets the setting, and Xray accepts the result.
+# (Docker Desktop's kernel has no BBR, so this checks the rendered config, not the socket.)
+render_n=0
+render_check() { # name options-filter jq-assertion
+	# A fresh file name per check: Docker Desktop's file sharing can serve a stale copy of a
+	# file rewritten moments earlier.
+	local name=$1 n=$((++render_n))
+	jq "$2" "$out/options.json" >"$out/options-r$n.json"
+	if docker run --rm --entrypoint xray-render -v "$out:/c:ro" "$image" "/c/options-r$n.json" >"$out/rendered-r$n.json" &&
+		jq -e "$3" "$out/rendered-r$n.json" >/dev/null &&
+		docker run --rm --entrypoint xray -v "$out:/c:ro" "$image" run -test -config "/c/rendered-r$n.json" >/dev/null; then
+		echo "PASS  $name"
+		pass=$((pass + 1))
+	else
+		echo "FAIL  $name"
+		fail=$((fail + 1))
+	fi
+}
+render_check "congestion default: no tcpCongestion" '.' \
+	'[.outbounds[] | .streamSettings.sockopt.tcpCongestion // empty] == []'
+render_check "congestion bbr: tunnel socket only" '.tunnel_congestion = "bbr"' \
+	'[.outbounds[] | {tag, cc: .streamSettings.sockopt.tcpCongestion} | select(.cc)] == [{tag: "tunnel", cc: "bbr"}]'
+
 echo "--- bridge log"
 docker logs "$p-bridge" 2>&1 | tail -n 15
 echo "--- $pass passed, $fail failed"

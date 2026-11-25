@@ -11,6 +11,11 @@ configuration:
   tunnel_uuid:
     name: "Tunnel ID"
     description: "The UUID the server holds for this tunnel. Treat it like a password."
+  tunnel_congestion:
+    name: "Tunnel congestion control"
+    description: >-
+      system: kernel default (cubic). bbr: paces the tunnel, copes with a small upload
+      buffer; usually much faster. See the documentation.
   log_level:
     name: "Log level"
     description: "Xray error log level. Access logs are always off."

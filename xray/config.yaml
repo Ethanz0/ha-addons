@@ -1,5 +1,5 @@
 name: "Xray"
-version: "26.10.31-2"
+version: "26.10.31-3"
 slug: "xray"
 description: "Xray reverse tunnel: dials out to your server and offers this network as an exit"
 url: "https://github.com/Ethanz0/ha-addons/tree/main/xray"
@@ -9,15 +9,21 @@ init: false
 startup: application
 boot: auto
 # Dials out only; nothing listens, so no ports are published.
+# NET_ADMIN only lets Xray pick BBR for its own tunnel socket (tunnel_congestion: bbr):
+# BBR is not on the kernel's unprivileged list, and only NET_ADMIN may load its module.
+privileged:
+  - NET_ADMIN
 options:
   tunnel_address: ""
   tunnel_dns: "100.100.100.100"
   tunnel_port: 10443
   tunnel_uuid: ""
+  tunnel_congestion: "system"
   log_level: "warning"
 schema:
   tunnel_address: "match(^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$)"
   tunnel_dns: "str?"
   tunnel_port: port
   tunnel_uuid: password
+  tunnel_congestion: "list(system|bbr)"
   log_level: "list(debug|info|warning|error|none)"
