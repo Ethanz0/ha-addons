@@ -1,0 +1,8 @@
+# Release checksums (64 hex characters after a *_SHA256* name) are public, not secrets.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Pinned release checksums"
+regexTarget = "line"
+regexes = ['''_SHA256_[A-Z0-9]+=[0-9a-f]{64}$''']

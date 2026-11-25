@@ -1,0 +1,12 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+set -euo pipefail
+
+config=/tmp/xray.json
+umask 077
+xray-render /data/options.json >"$config"
+
+# Read options from the file (not bashio::config) so the image also runs outside HA in tests.
+target=$(jq -r '"\(.tunnel_address):\(.tunnel_port)"' /data/options.json)
+bashio::log.info "Starting $(xray version | head -n 1 | cut -d ' ' -f 1-2), tunnel to ${target}"
+exec xray run -config "$config"

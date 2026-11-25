@@ -1,0 +1,13 @@
+configuration:
+  tunnel_address:
+    name: "Server address"
+    description: "Tailscale IP or name of the server this app dials out to."
+  tunnel_port:
+    name: "Server port"
+    description: "Port of the tunnel inbound on the server (reachable over Tailscale only)."
+  tunnel_uuid:
+    name: "Tunnel ID"
+    description: "The UUID the server holds for this tunnel. Treat it like a password."
+  log_level:
+    name: "Log level"
+    description: "Xray error log level. Access logs are always off."

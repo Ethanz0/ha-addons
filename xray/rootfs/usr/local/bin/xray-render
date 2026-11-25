@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Render the Xray config from the app options.
+# Usage: xray-render <options.json>   (writes the config to stdout)
+#
+# Traffic arrives from the server through the reverse tunnel ("home-in") and leaves
+# through "home-out". Local network protection is layered:
+#   1. Routing sends any private or reserved target IP to "block".
+#   2. "home-out" resolves names to IPv4 only and its finalRules check the address it
+#      actually connects to, so a name that resolves to a local address is blocked too.
+#   3. All IPv6 is blocked: local devices can have public IPv6 addresses that no
+#      private-range rule would catch.
+#   4. The first (default) outbound is "block", so anything unmatched goes nowhere.
+set -euo pipefail
+
+options=${1:?usage: xray-render <options.json>}
+
+address=$(jq -er '.tunnel_address | select(length > 0)' "$options") || {
+	echo "tunnel_address is not set" >&2
+	exit 1
+}
+uuid=$(jq -er '.tunnel_uuid' "$options")
+if ! [[ $uuid =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+	echo "tunnel_uuid is not a UUID" >&2
+	exit 1
+fi
+
+jq -n \
+	--arg address "$address" \
+	--argjson port "$(jq -e '.tunnel_port' "$options")" \
+	--arg uuid "$uuid" \
+	--arg level "$(jq -er '.log_level' "$options")" \
+	'{
+  log: {loglevel: $level, access: "none"},
+  outbounds: [
+    {tag: "block", protocol: "blackhole"},
+    {
+      tag: "tunnel",
+      protocol: "vless",
+      settings: {
+        address: $address,
+        port: $port,
+        id: $uuid,
+        encryption: "none",
+        reverse: {tag: "home-in"}
+      }
+    },
+    {
+      tag: "home-out",
+      protocol: "freedom",
+      streamSettings: {sockopt: {domainStrategy: "UseIPv4"}},
+      settings: {
+        finalRules: [
+          {action: "block", ip: ["geoip:private"]},
+          {action: "block", ip: ["::/0"]},
+          {action: "allow"}
+        ]
+      }
+    }
+  ],
+  routing: {
+    domainStrategy: "AsIs",
+    rules: [
+      {inboundTag: ["home-in"], ip: ["geoip:private", "::/0"], outboundTag: "block"},
+      {inboundTag: ["home-in"], outboundTag: "home-out"}
+    ]
+  }
+}'

@@ -1,0 +1,8 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# If Xray exits, stop the container so the Supervisor reports it and the watchdog can
+# restart it, instead of s6 restarting it silently in a loop.
+exit_code=${1:-0}
+bashio::log.warning "Xray exited with code ${exit_code}"
+echo "${exit_code}" >/run/s6-linux-init-container-results/exitcode
+exec /run/s6/basedir/bin/halt
