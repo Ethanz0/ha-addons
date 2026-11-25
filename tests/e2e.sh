@@ -7,7 +7,8 @@
 #
 # Passes when the internet is reachable through the tunnel and the local device is not
 # (by IP, by name, loopback, the Tailscale range, IPv6), while the bridge itself can
-# reach the local device (so the blocks are real, not a broken network).
+# reach the local device (so the blocks are real, not a broken network). The server name is
+# resolved through Docker's DNS server (127.0.0.11), as on the Pi through Tailscale's.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -69,7 +70,7 @@ docker run -d --name "$p-portal" --network "$p-wan" --entrypoint xray -v "$out:/
 	run -config /c/portal.json >/dev/null
 
 jq -n --arg a "$p-portal" --arg u "$uuid" \
-	'{tunnel_address: $a, tunnel_port: 10443, tunnel_uuid: $u, log_level: "warning"}' >"$out/options.json"
+	'{tunnel_address: $a, tunnel_dns: "127.0.0.11", tunnel_port: 10443, tunnel_uuid: $u, log_level: "warning"}' >"$out/options.json"
 docker create --name "$p-bridge" --network "$p-wan" -v "$out/options.json:/data/options.json:ro" "$image" >/dev/null
 docker network connect "$p-lan" "$p-bridge"
 docker start "$p-bridge" >/dev/null

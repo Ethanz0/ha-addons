@@ -1,5 +1,5 @@
 name: "Xray"
-version: "26.10.31-1"
+version: "26.10.31-2"
 slug: "xray"
 description: "Xray reverse tunnel: dials out to your server and offers this network as an exit"
 url: "https://github.com/Ethanz0/ha-addons/tree/main/xray"
@@ -11,11 +11,13 @@ boot: auto
 # Dials out only; nothing listens, so no ports are published.
 options:
   tunnel_address: ""
+  tunnel_dns: "100.100.100.100"
   tunnel_port: 10443
   tunnel_uuid: ""
   log_level: "warning"
 schema:
-  tunnel_address: "str(1,253)"
+  tunnel_address: "match(^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$)"
+  tunnel_dns: "str?"
   tunnel_port: port
   tunnel_uuid: password
   log_level: "list(debug|info|warning|error|none)"

@@ -1,7 +1,10 @@
 configuration:
   tunnel_address:
-    name: "Server address"
-    description: "Tailscale IP or name of the server this app dials out to."
+    name: "Server name"
+    description: "Tailscale machine name of the server (for example vps-test), not an IP."
+  tunnel_dns:
+    name: "Tailscale DNS"
+    description: "Resolver for the server name. Leave at 100.100.100.100 (Tailscale MagicDNS)."
   tunnel_port:
     name: "Server port"
     description: "Port of the tunnel inbound on the server (reachable over Tailscale only)."

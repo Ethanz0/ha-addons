@@ -10,6 +10,13 @@
 #   3. All IPv6 is blocked: local devices can have public IPv6 addresses that no
 #      private-range rule would catch.
 #   4. The first (default) outbound is "block", so anything unmatched goes nowhere.
+#      Only Xray's own lookups of the server name (inbound "dns-internal", UDP 53 to the
+#      tunnel_dns address only) get a plain exit, "dns-out".
+#
+# The tunnel has no TLS (Tailscale encrypts it), and Xray only allows that towards a
+# private address or name. Tailscale's 100.x addresses do not count, so the server is
+# given by its single-label Tailscale name, resolved through Tailscale's DNS server
+# (tunnel_dns). An empty tunnel_dns uses the system resolver.
 set -euo pipefail
 
 options=${1:?usage: xray-render <options.json>}
@@ -18,6 +25,10 @@ address=$(jq -er '.tunnel_address | select(length > 0)' "$options") || {
 	echo "tunnel_address is not set" >&2
 	exit 1
 }
+if ! [[ $address =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
+	echo "tunnel_address must be a Tailscale machine name such as vps-test, not an IP or FQDN" >&2
+	exit 1
+fi
 uuid=$(jq -er '.tunnel_uuid' "$options")
 if ! [[ $uuid =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
 	echo "tunnel_uuid is not a UUID" >&2
@@ -29,8 +40,15 @@ jq -n \
 	--argjson port "$(jq -e '.tunnel_port' "$options")" \
 	--arg uuid "$uuid" \
 	--arg level "$(jq -er '.log_level' "$options")" \
+	--arg dns "$(jq -r '.tunnel_dns // ""' "$options")" \
 	'{
   log: {loglevel: $level, access: "none"},
+  dns: {
+    servers: ((if $dns == "" then [] else
+      [{address: $dns, domains: ["full:" + $address], skipFallback: true}] end) + ["localhost"]),
+    queryStrategy: "UseIPv4",
+    tag: "dns-internal"
+  },
   outbounds: [
     {tag: "block", protocol: "blackhole"},
     {
@@ -42,8 +60,10 @@ jq -n \
         id: $uuid,
         encryption: "none",
         reverse: {tag: "home-in"}
-      }
+      },
+      streamSettings: {sockopt: {domainStrategy: "UseIPv4"}}
     },
+    {tag: "dns-out", protocol: "freedom"},
     {
       tag: "home-out",
       protocol: "freedom",
@@ -60,6 +80,9 @@ jq -n \
   routing: {
     domainStrategy: "AsIs",
     rules: [
+      (if $dns == "" then empty else
+        {inboundTag: ["dns-internal"], ip: [$dns], network: "udp", port: 53, outboundTag: "dns-out"}
+      end),
       {inboundTag: ["home-in"], ip: ["geoip:private", "::/0"], outboundTag: "block"},
       {inboundTag: ["home-in"], outboundTag: "home-out"}
     ]

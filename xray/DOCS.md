@@ -17,7 +17,8 @@ Only the public internet, over IPv4. Blocked:
 
 | Option | Meaning |
 |---|---|
-| `tunnel_address` | Tailscale IP or name of the server. |
+| `tunnel_address` | Tailscale machine name of the server, such as `vps-test`. Not an IP: the tunnel has no TLS of its own (Tailscale encrypts it) and Xray only allows that towards a private name. |
+| `tunnel_dns` | DNS server for that name; keep `100.100.100.100` (Tailscale MagicDNS). |
 | `tunnel_port` | Tunnel port on the server (Tailscale only). |
 | `tunnel_uuid` | The tunnel ID held by the server. Keep it secret. |
 | `log_level` | Xray error log level. Access logs are always off. |
